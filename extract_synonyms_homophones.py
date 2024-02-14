@@ -23,42 +23,43 @@ def _get_args():
     return parser.parse_args()
 
 
-
-def _get_synonym_map(words, df):
+def _get_synonym_map(words, df, text2phones, threshold=0.4):
     synonym_map = {}
     for index in tqdm(df.reset_index().groupby(["text"])["index"].min()):
         row = df.loc[index]
-        synonyms = set([s for s in row.synonyms if s != row.text])
-        if len(synonyms - words) > 0:
+        synonyms = []
+        for s in row.synonyms:
+            if threshold < 0:
+                synonyms.append(s)
+            else:
+                if (s in words) and (phonetic_dist(row.phones, text2phones[s]) > threshold):
+                    synonyms.append(s)
+        synonyms = set(synonyms).intersection(words)
+        if len(synonyms) > 0:
             synonym_map[row.text] = synonyms
     return synonym_map
 
 
-def _get_homophone(df, words, indices, word):
-    phones = df[df.text == word].iloc[0].phones
-    dist = 2.0
-    homophone = None
-
+def _get_homophone(df, indices, text2phones, synonym_map, word, threshold=0.4):
+    homophones = []
     for index in indices:
         row = df.loc[index]
-        if row.text not in synonym_map[word] and \
-            row.text != word and \
-            not (row.text in synonym_map and word not in synonym_map[row.text]):
-            new_dist = phonetic_dist(phones, row.phones)
-            if 0.0 <= new_dist < dist:
-                dist = new_dist
-                homophone = row.text
-    return homophone
+        if (row.text != word) and \
+            (row.text not in synonym_map.get(word, set())) and \
+            (word not in synonym_map.get(row.text, set())):
+            if 0.0 < phonetic_dist(text2phones[word], row.phones) <= threshold:
+                homophones.append(row.text)
+    return set(homophones)
 
 
-def _get_homophone_map(synonym_map, df, num_workers):
-    tqdm_args = dict(max_workers=num_workers, chunksize=len(synonym_map) // (num_workers*4))
-    words = list(synonym_map.keys())
+def _get_homophone_map(words, synonym_map, df, text2phones, num_workers):
+    tqdm_args = dict(max_workers=num_workers, chunksize=len(words) // (num_workers*4))
     indices = df.reset_index().groupby(["text"])["index"].min()
-    homophones = process_map(
-        partial(_get_homophone, df[["text", "phones"]], words, indices),
+
+    homophones_list = process_map(
+        partial(_get_homophone, df[["text", "phones"]], indices, text2phones, synonym_map),
         words, **tqdm_args)
-    return dict(zip(words, homophones))
+    return {w: hs for w, hs in zip(words, homophones_list) if len(hs) > 0}
 
 
 def _get_output_path(args):
@@ -78,9 +79,20 @@ if __name__ == "__main__":
     df = pd.read_pickle(args.df_path)
     filtered_df = filter_df(df, args.speaker, args.n_sample, args.seed)
     words = set(filtered_df.text.unique())
+    text2phones = {row.text: tuple(row.phones) for row in filtered_df.itertuples()}
 
-    synonym_map = _get_synonym_map(words, filtered_df)
-    homophone_map = _get_homophone_map(synonym_map, df if args.homophone_no_filter else filtered_df, args.num_workers)
+    synonym_map = _get_synonym_map(words, filtered_df, text2phones)
+    print(f"Synonym pairs: {sum(len(v) for v in synonym_map.values())}")
+
+    not_filtered_synonym_map = _get_synonym_map(words, filtered_df, text2phones, threshold=-1)
+    homophone_map = _get_homophone_map(
+        words,
+        not_filtered_synonym_map,
+        df if args.homophone_no_filter else filtered_df,
+        text2phones,
+        args.num_workers
+    )
+    print(f"Near-homophone pairs: {sum(len(v) for v in homophone_map.values())}")
 
     with open(_get_output_path(args), "wb") as f:
         pickle.dump({

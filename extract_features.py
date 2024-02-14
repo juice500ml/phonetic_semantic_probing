@@ -17,9 +17,9 @@ def _get_args():
     parser.add_argument("--device", default="cpu", help="Device to infer, cpu or cuda:0 (gpu)")
     parser.add_argument("--speaker", type=str, default=None, help="Speaker id to filter")
     parser.add_argument("--n_sample", type=int, default=None, help="# of random samples")
-    parser.add_argument("--pooling", type=str, choices=["center", "mean"], help="Feature pooling method")
+    parser.add_argument("--pooling", type=str, choices=["center", "mean", "median_euclidean", "median_cosine"], help="Feature pooling method")
     parser.add_argument("--seed", type=int, default=0, help="Seed used for random sampling")
-    parser.add_argument("--slice", type=bool, default=False, help="Slice input by word boundary")
+    parser.add_argument("--slice", type=lambda x: x.lower()=="true", default=False, help="Slice input by word boundary")
     return parser.parse_args()
 
 
@@ -39,10 +39,10 @@ def _get_feat(row, feats, model, pooling, slice):
         finish_index = len(feats)
     else:
         start_index = _get_index(
-            second=row["start"], num_frames=len(feats), model=model,
+            second=row.start, num_frames=len(feats), model=model,
         )
         finish_index = _get_index(
-            second=row["finish"], num_frames=len(feats), model=model,
+            second=row.finish, num_frames=len(feats), model=model,
         )
     if pooling == "center":
         index = (start_index + finish_index) // 2
@@ -54,8 +54,8 @@ def _get_feat(row, feats, model, pooling, slice):
         dists = ((feats[start_index:finish_index+1] - feats_mean[:, None]) ** 2).sum(1)
         return feats[dists.argmin(1)]
     elif pooling == "median_cosine":
-        norm_feats /= (feats ** 2).sum(1, keepdims=True)
-        return _get_feat(row, norm_feats, model, "median_euclidean")
+        feats /= (feats ** 2).sum(1, keepdims=True)
+        return _get_feat(row, feats, model, "median_euclidean")
     else:
         raise NotImplementedError
 

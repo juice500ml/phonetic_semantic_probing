@@ -93,7 +93,7 @@ def _random_sampler(df, wordmap):
 def _synonym_sampler(df, wordmap):
     l_indices = df.index.to_numpy()
     for l in l_indices:
-        syn = set(wordmap["synonym_map"].get(df.loc[l].text, []))
+        syn = set(wordmap["synonym_map"].get(df.loc[l].text, set()))
         for r in df[df.text.isin(syn)].index:
             if l != r:
                 yield l, r
@@ -101,8 +101,8 @@ def _synonym_sampler(df, wordmap):
 def _homophone_sampler(df, wordmap):
     l_indices = df.index.to_numpy()
     for l in l_indices:
-        hom = wordmap["homophone_map"].get(df.loc[l].text)
-        for r in df[(df.text == hom)].index:
+        hom = wordmap["homophone_map"].get(df.loc[l].text, set())
+        for r in df[df.text.isin(hom)].index:
             if l != r:
                 yield l, r
 
