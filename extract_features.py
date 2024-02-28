@@ -50,12 +50,12 @@ def _get_feat(row, feats, model, pooling, slice):
     elif pooling == "mean":
         return feats[start_index:finish_index+1].mean(0)
     elif pooling == "median_euclidean":
-        feats_mean = _get_feat(row, feats, model, "mean")
-        dists = ((feats[start_index:finish_index+1] - feats_mean[:, None]) ** 2).sum(1)
-        return feats[dists.argmin(1)]
+        feats_mean = _get_feat(row, feats, model, "mean", slice)
+        dists = ((feats[start_index:finish_index+1] - feats_mean[None, :]) ** 2).sum(1)
+        return feats[dists.argmin()]
     elif pooling == "median_cosine":
         feats /= (feats ** 2).sum(1, keepdims=True)
-        return _get_feat(row, feats, model, "median_euclidean")
+        return _get_feat(row, feats, model, "median_euclidean", slice)
     else:
         raise NotImplementedError
 
@@ -114,6 +114,11 @@ if __name__ == "__main__":
     args = _get_args()
     print(args)
 
+    output_path = _get_output_path(args)
+    if output_path.exists():
+        print("Extracted feature already exists.")
+        exit(0)
+
     processor, model = _get_model(args.model)
     model.to(args.device)
 
@@ -141,4 +146,4 @@ if __name__ == "__main__":
             for row in df[df.path == path].itertuples():
                 df.at[row.Index, "feat"] = _get_feats(row, feats, args.model, args.pooling, args.slice)
 
-    df.to_pickle(_get_output_path(args))
+    df.to_pickle(output_path)
