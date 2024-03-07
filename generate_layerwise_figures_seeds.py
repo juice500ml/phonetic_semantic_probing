@@ -53,7 +53,7 @@ if __name__ == "__main__":
             df = pd.read_pickle(f"tables/{args.dataset}_model-{args.model}_slice-{args.slice}_spk-{speaker}_size-{args.size}_pool-{args.pooling}_seed-{seed}.feat.pkl")
             wordmap = pickle.load(open(f"tables/{args.dataset}_spk-{speaker}_size-{args.size}_seed-{seed}.wordmap.pkl", "rb"))
 
-            if (args.speaker != "everyone") or ("speaker" not in df.keys()) or (len(args.speakers) >= 2):
+            if ("speaker" not in df.keys()) or (len(args.speakers) >= 2):
                 if "speaker" in samplers.keys():
                     del samplers["speaker"]
 
