@@ -13,3 +13,5 @@ unzip crawl-300d-2M-subword.zip
 wget https://raw.githubusercontent.com/ytsvetko/qvec/master/oracles/semcor_noun_verb.supersenses.en
 
 wget https://raw.githubusercontent.com/alvations/stasis/master/sts.csv
+
+wget https://www.mdbg.net/chinese/export/cedict/cedict_1_0_ts_utf-8_mdbg.txt.gz

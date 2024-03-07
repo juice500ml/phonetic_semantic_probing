@@ -72,12 +72,20 @@ def spearman_corr(d1, d2):
     return spearmanr(d1, d2).statistic
 
 
-def filter_df(df, speaker, n_sample, seed):
+def filter_df(df, speaker, n_sample, language_uniform, seed):
     print(f"Original size: {len(df)}")
-    if speaker is not None:
-        df = df[df.speaker == speaker]
-    if n_sample is not None:
-        df = df.sample(n_sample, random_state=seed)
+    if language_uniform:
+        langs = df["language"].unique()
+        assert speaker == None
+        df = pd.concat([
+            df[df.language == lang].sample(n_sample, random_state=seed)
+            for lang in langs
+        ])
+    else:
+        if speaker != None:
+            df = df[df.speaker == speaker]
+        if n_sample != None:
+            df = df.sample(n_sample, random_state=seed)
     print(f"Filtered size: {len(df)}")
     return df
 

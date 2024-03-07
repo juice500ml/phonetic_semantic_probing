@@ -18,6 +18,7 @@ def _get_args():
     parser.add_argument("--speaker", type=str, default=None, help="Speaker id to filter")
     parser.add_argument("--n_sample", type=int, default=None, help="# of random samples")
     parser.add_argument("--pooling", type=str, choices=["center", "mean", "median_euclidean", "median_cosine"], help="Feature pooling method")
+    parser.add_argument("--language_uniform", type=lambda x: x.lower()=="true", default=False, help="Sample uniformly per language")
     parser.add_argument("--seed", type=int, default=0, help="Seed used for random sampling")
     parser.add_argument("--slice", type=lambda x: x.lower()=="true", default=False, help="Slice input by word boundary")
     return parser.parse_args()
@@ -123,7 +124,7 @@ if __name__ == "__main__":
     model.to(args.device)
 
     df = pd.read_pickle(args.df_path)
-    df = filter_df(df, args.speaker, args.n_sample, args.seed)
+    df = filter_df(df, args.speaker, args.n_sample, args.language_uniform, args.seed)
     df["feat"] = None
 
     if args.slice:

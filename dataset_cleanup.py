@@ -1,8 +1,11 @@
 import argparse
+import json
+import gzip
 import re
 from pathlib import Path
 
 import cmudict
+import epitran
 import soundfile as sf
 import pandas as pd
 from datasets import load_dataset
@@ -30,14 +33,14 @@ def _cmudict(word, cache=cmudict.dict()):
     ]
 
 
-def _wordnet(word):
-    synomyms = [
+def _wordnet(word, lang="eng"):
+    synonyms = [
         syn
-        for synsets in wordnet.synsets(word)
-        for syn in synsets.lemma_names()
+        for synsets in wordnet.synsets(word, lang=lang)
+        for syn in synsets.lemma_names("eng")
         if syn != word
     ]
-    return list(set(synomyms))
+    return set(synonyms)
 
 
 def _librispeech(dataset_path: Path, textgrid_path: Path):
@@ -46,7 +49,7 @@ def _librispeech(dataset_path: Path, textgrid_path: Path):
         grid = TextGrid(p)
         for word in grid["words"]:
             phones = _cmudict(word.text)
-            synonyms = _wordnet(word.text)
+            synonyms = list(_wordnet(word.text))
             if phones is not None and len(synonyms) > 0:
                 rows.append({
                     "text": word.text,
@@ -61,7 +64,7 @@ def _librispeech(dataset_path: Path, textgrid_path: Path):
     return pd.DataFrame(rows)
 
 
-def _commonvoice_sts(dataset_path: Path, textgrid_path: Path):
+def _commonvoice_sts(dataset_path: Path, textgrid_path: Path = None):
     rows = []
     ds = load_dataset("charsiu/Common_voice_sentence_similarity", cache_dir=dataset_path / "cache")
     for split in ("dev", "test"):
@@ -93,9 +96,61 @@ def _commonvoice_sts(dataset_path: Path, textgrid_path: Path):
     return pd.DataFrame(rows)
 
 
+def _multilingual_spoken_words(dataset_path: Path, textgrid_path: Path = None):
+    langs = pd.DataFrame([
+        {"name": "English", "wordnet": "eng", "MSW": "en", "epitran": "eng-Latn"},
+        {"name": "Chinese", "wordnet": "cmn", "MSW": "zh-CN", "epitran": "cmn-Hans"},
+        # {"name": "Arabic", "wordnet": "arb", "MSW": "ar"},
+        # {"name": "Greek", "wordnet": "ell", "MSW": "el"},
+        # {"name": "Persian", "wordnet": "fas", "MSW": "fa"},
+        # {"name": "French", "wordnet": "fra", "MSW": "fr"},
+        {"name": "Italian", "wordnet": "ita", "MSW": "it", "epitran": "ita-Latn"},
+        # {"name": "Catalan", "wordnet": "cat", "MSW": "ca"},
+        # {"name": "Basque", "wordnet": "eus", "MSW": "eu"},
+        {"name": "Spanish", "wordnet": "spa", "MSW": "es", "epitran": "spa-Latn"},
+        {"name": "Indonesian", "wordnet": "ind", "MSW": "id", "epitran": "ind-Latn"},
+        {"name": "Polish", "wordnet": "pol", "MSW": "pl", "epitran": "pol-Latn"},
+        # {"name": "Portuguese", "wordnet": "por", "MSW": "pt"},
+        # {"name": "Slovenian", "wordnet": "slv", "MSW": "sl"},
+        {"name": "Swedish", "wordnet": "swe", "MSW": "sv-SE", "epitran": "swe-Latn"},
+    ])
+
+    metadata = json.load(gzip.open(dataset_path / "metadata.json.gz"))
+
+    eng_df = pd.read_csv("datasets/msw_english.csv", keep_default_na=False)
+    eng_dict = dict(zip(eng_df.word, eng_df.ipa))
+    eng_words = set(eng_dict.keys())
+
+    rows = []
+    for row in langs.itertuples():
+        epi = epitran.Epitran(row.epitran, cedict_file="datasets/cedict_1_0_ts_utf-8_mdbg.txt")
+        for word, fnames in tqdm(metadata[row.MSW]["filenames"].items()):
+            synonyms = _wordnet(word, lang=row.wordnet) & eng_words
+            if len(synonyms) > 0 or row.name == "English":
+                for fname in fnames:
+                    if row.name == "English":
+                        # epitran English is too slow
+                        # used cached version in datasets/ directory
+                        phones = eng_dict[word]
+                        synonyms = []
+                    else:
+                        phones = epi.transliterate(word)
+                    rows.append({
+                        "text": word,
+                        "path": dataset_path / "audio" / row.MSW / "clips" / word / fname,
+                        "phones": list(phones),
+                        "synonyms": list(synonyms),
+                        "language": row.name,
+                        "start": 0.0,
+                        "finish": 1.0,
+                    })
+    return pd.DataFrame(rows)
+
+
 _SUPPORTED_DATASETS = {
-        "librispeech": _librispeech,
-        "commonvoice_sts": _commonvoice_sts,
+    "librispeech": _librispeech,
+    "commonvoice_sts": _commonvoice_sts,
+    "multilingual_spoken_words": _multilingual_spoken_words,
 }
 
 

@@ -16,7 +16,8 @@ def _get_args():
     parser.add_argument("--df_path", type=Path, help="Path to dataset")
     parser.add_argument("--speaker", type=str, default=None, help="Speaker id to filter")
     parser.add_argument("--n_sample", type=int, default=None, help="# of random samples")
-    parser.add_argument("--homophone_no_filter", type=bool, default=False, help="Do not filter for homophone extraction")
+    parser.add_argument("--homophone_no_filter", type=lambda x: x.lower()=="true", default=False, help="Do not filter for homophone extraction")
+    parser.add_argument("--language_uniform", type=lambda x: x.lower()=="true", default=False, help="Sample uniformly per language")
     parser.add_argument("--num_workers", type=int, default=64, help="Number of workers")
     parser.add_argument("--seed", type=int, default=0, help="Number of workers")
 
@@ -77,7 +78,7 @@ if __name__ == "__main__":
     print(args)
 
     df = pd.read_pickle(args.df_path)
-    filtered_df = filter_df(df, args.speaker, args.n_sample, args.seed)
+    filtered_df = filter_df(df, args.speaker, args.n_sample, args.language_uniform, args.seed)
     words = set(filtered_df.text.unique())
     text2phones = {row.text: tuple(row.phones) for row in filtered_df.itertuples()}
 
@@ -85,13 +86,22 @@ if __name__ == "__main__":
     print(f"Synonym pairs: {sum(len(v) for v in synonym_map.values())}")
 
     not_filtered_synonym_map = _get_synonym_map(words, filtered_df, text2phones, threshold=-1)
-    homophone_map = _get_homophone_map(
-        words,
-        not_filtered_synonym_map,
-        df if args.homophone_no_filter else filtered_df,
-        text2phones,
-        args.num_workers
-    )
+    if args.language_uniform:
+        homophone_map = _get_homophone_map(
+            set(filtered_df[filtered_df.language == "English"].text.unique()),
+            not_filtered_synonym_map,
+            df[df.language != "English"] if args.homophone_no_filter else filtered_df[filtered_df.language != "English"],
+            text2phones,
+            args.num_workers
+        )
+    else:
+        homophone_map = _get_homophone_map(
+            words,
+            not_filtered_synonym_map,
+            df if args.homophone_no_filter else filtered_df,
+            text2phones,
+            args.num_workers
+        )
     print(f"Near-homophone pairs: {sum(len(v) for v in homophone_map.values())}")
 
     with open(_get_output_path(args), "wb") as f:
