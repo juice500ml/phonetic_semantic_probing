@@ -1,6 +1,7 @@
 import argparse
 import pickle
 from collections import defaultdict
+from itertools import product
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -20,7 +21,7 @@ def _get_args():
     parser.add_argument("--dataset", default="librispeech-train-clean")
     parser.add_argument("--model")
     parser.add_argument("--slice")
-    parser.add_argument("--speaker", default="everyone")
+    parser.add_argument("--speakers", default=["everyone"], nargs="+")
     parser.add_argument("--size", default="full")
     parser.add_argument("--pooling")
     parser.add_argument("--dist")
@@ -43,19 +44,20 @@ if __name__ == "__main__":
     dist_func = {"euclidean_dist": euclidean_dist, "cos_sim": cos_sim, "dot_sim": dot_sim}[args.dist]
 
     seedwise_dists = []
-    for seed in range(args.num_seeds):
-        dists_path = Path(f"tables/{args.dataset}_model-{args.model}_slice-{args.slice}_spk-{args.speaker}_size-{args.size}_pool-{args.pooling}_seed-{seed}_dist-{args.dist}.dist.pkl")
+    for seed, speaker in product(range(args.num_seeds), args.speakers):
+        dists_path = Path(f"tables/{args.dataset}_model-{args.model}_slice-{args.slice}_spk-{speaker}_size-{args.size}_pool-{args.pooling}_seed-{seed}_dist-{args.dist}.dist.pkl")
         if dists_path.exists():
             dists = pickle.load(open(dists_path, "rb"))
         else:
             # Load data
-            df = pd.read_pickle(f"tables/{args.dataset}_model-{args.model}_slice-{args.slice}_spk-{args.speaker}_size-{args.size}_pool-{args.pooling}_seed-{seed}.feat.pkl")
-            wordmap = pickle.load(open(f"tables/{args.dataset}_spk-{args.speaker}_size-{args.size}_seed-{seed}.wordmap.pkl", "rb"))
+            df = pd.read_pickle(f"tables/{args.dataset}_model-{args.model}_slice-{args.slice}_spk-{speaker}_size-{args.size}_pool-{args.pooling}_seed-{seed}.feat.pkl")
+            wordmap = pickle.load(open(f"tables/{args.dataset}_spk-{speaker}_size-{args.size}_seed-{seed}.wordmap.pkl", "rb"))
+
+            if (args.speaker != "everyone") or ("speaker" not in df.keys()) or (len(args.speakers) >= 2):
+                if "speaker" in samplers.keys():
+                    del samplers["speaker"]
 
             dists = defaultdict(list)
-            if (args.speaker != "everyone") or ("speaker" not in df.keys()):
-                del samplers["speaker"]
-
             layer_count = len(df.iloc[0].feat)
             for layer in range(layer_count):
                 for name, sampler in samplers.items():
@@ -89,7 +91,7 @@ if __name__ == "__main__":
             plt.fill_between(np.arange(len(value)), value-bound, value+bound, alpha=0.1)
         plt.legend()
 
-        title = f"{args.dataset}_model-{args.model}_slice-{args.slice}_spk-{args.speaker}_size-{args.size}_pool-{args.pooling}_num_seeds-{args.num_seeds}_dist-{args.dist}_norm-{normalizer}"
+        title = f"{args.dataset}_model-{args.model}_slice-{args.slice}_spkcnt-{len(args.speakers)}_size-{args.size}_pool-{args.pooling}_num_seeds-{args.num_seeds}_dist-{args.dist}_norm-{normalizer}"
         plt.title(title.replace("_pool", "\npool"))
 
         p = Path(f"figs/seedwise/{title}.pdf")
