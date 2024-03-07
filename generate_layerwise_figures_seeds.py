@@ -53,7 +53,7 @@ if __name__ == "__main__":
             wordmap = pickle.load(open(f"tables/{args.dataset}_spk-{args.speaker}_size-{args.size}_seed-{seed}.wordmap.pkl", "rb"))
 
             dists = defaultdict(list)
-            if args.speaker != "everyone":
+            if (args.speaker != "everyone") or ("speaker" not in df.keys()):
                 del samplers["speaker"]
 
             layer_count = len(df.iloc[0].feat)
@@ -62,7 +62,6 @@ if __name__ == "__main__":
                     accumulator = defaultdict(list)
                     for l, r in sampler(df, wordmap):
                         accumulator[(df.loc[l].text, df.loc[r].text)].append(cos_sim(df.loc[l].feat[layer], df.loc[r].feat[layer]))
-                        if len(accumulator) > 1000: break
                     dists[name].append(np.array([np.array(v).mean() for v in accumulator.values()]))
             pickle.dump(dists, open(dists_path, "wb"))
 
