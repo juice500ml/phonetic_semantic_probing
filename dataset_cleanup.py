@@ -6,7 +6,9 @@ from pathlib import Path
 
 import cmudict
 import epitran
+import librosa
 import soundfile as sf
+import numpy as np
 import pandas as pd
 from datasets import load_dataset
 from nltk.corpus import wordnet
@@ -64,38 +66,6 @@ def _librispeech(dataset_path: Path, textgrid_path: Path):
     return pd.DataFrame(rows)
 
 
-def _commonvoice_sts(dataset_path: Path, textgrid_path: Path = None):
-    rows = []
-    ds = load_dataset("charsiu/Common_voice_sentence_similarity", cache_dir=dataset_path / "cache")
-    for split in ("dev", "test"):
-        split_name = "train" if split == "dev" else "test"
-        for row in tqdm(ds[split]):
-            path_a = dataset_path / f"{Path(row['path_a']).stem}.wav"
-            sf.write(path_a, row["audio_a"], samplerate=16000)
-            rows.append({
-                "text": row["sentence_a"],
-                "start": 0.0,
-                "finish": len(row["audio_a"]) / 16000,
-                "path": path_a,
-                "paired_text": row["sentence_b"],
-                "similarity": row["similarity"],
-                "split": split_name,
-            })
-
-            path_b = dataset_path / f"{Path(row['path_b']).stem}.wav"
-            sf.write(path_b, row["audio_a"], samplerate=16000)
-            rows.append({
-                "text": row["sentence_b"],
-                "start": 0.0,
-                "finish": len(row["audio_b"]) / 16000,
-                "path": path_b,
-                "paired_text": None,
-                "similarity": None,
-                "split": split_name,
-            })
-    return pd.DataFrame(rows)
-
-
 def _multilingual_spoken_words(dataset_path: Path, textgrid_path: Path = None):
     langs = pd.DataFrame([
         {"name": "English", "wordnet": "eng", "MSW": "en", "epitran": "eng-Latn"},
@@ -147,10 +117,114 @@ def _multilingual_spoken_words(dataset_path: Path, textgrid_path: Path = None):
     return pd.DataFrame(rows)
 
 
+def _commonvoice_sts(dataset_path: Path, textgrid_path: Path = None):
+    rows = []
+    ds = load_dataset("charsiu/Common_voice_sentence_similarity", cache_dir=dataset_path / "cache")
+    for split in ("dev", "test"):
+        split_name = "train" if split == "dev" else "test"
+        for row in tqdm(ds[split]):
+            path_a = dataset_path / f"{Path(row['path_a']).stem}.wav"
+            sf.write(path_a, row["audio_a"], samplerate=16000)
+            rows.append({
+                "text": row["sentence_a"],
+                "start": 0.0,
+                "finish": len(row["audio_a"]) / 16000,
+                "path": path_a,
+                "paired_text": row["sentence_b"],
+                "similarity": row["similarity"],
+                "split": split_name,
+            })
+
+            path_b = dataset_path / f"{Path(row['path_b']).stem}.wav"
+            sf.write(path_b, row["audio_a"], samplerate=16000)
+            rows.append({
+                "text": row["sentence_b"],
+                "start": 0.0,
+                "finish": len(row["audio_b"]) / 16000,
+                "path": path_b,
+                "paired_text": None,
+                "similarity": None,
+                "split": split_name,
+            })
+    return pd.DataFrame(rows)
+
+
+def _spoken_sts(dataset_path: Path, textgrid_path: Path = None):
+    similarities = json.load(open(dataset_path / "all_gt.json"))
+
+    train_size = len(similarities) // 2
+    test_size = len(similarities) - train_size
+    splits = np.array(["train"] * train_size + ["test"] * test_size)
+    np.random.RandomState(42).shuffle(splits)
+    splits = dict(zip(sorted(similarities.keys()), splits))
+
+    rows = []
+    for dataset_name in tqdm(("STS12", "STS13", "STS14", "STS15", "STS16", )):
+        for subset_path in (dataset_path / dataset_name).glob("*.json"):
+            subset_name = subset_path.stem
+            for key, (sentence_a, sentence_b) in json.load(open(subset_path)).items():
+                for utt_index in range(1, 5):
+                    utt_path = dataset_path / "SpokenSTS_wav" / "natural_speech" / dataset_name / subset_name
+                    path_a = utt_path / f"{key}_0_human-speaker-{utt_index}.wav"
+                    path_b = utt_path / f"{key}_1_human-speaker-{utt_index}.wav"
+                    rows.append({
+                        "text": sentence_a,
+                        "start": 0.0,
+                        "finish": librosa.get_duration(path=path_a),
+                        "path": path_a,
+                        "paired_text": sentence_b,
+                        "similarity": similarities[f"{dataset_name}_{key}"],
+                        "split": splits[f"{dataset_name}_{key}"],
+                    })
+                    rows.append({
+                        "text": sentence_b,
+                        "start": 0.0,
+                        "finish": librosa.get_duration(path=path_b),
+                        "path": path_b,
+                        "paired_text": None,
+                        "similarity": None,
+                        "split": splits[f"{dataset_name}_{key}"],
+                    })
+    return pd.DataFrame(rows)
+
+
+def _fluent_speech_commands(dataset_path: Path, textgrid_path: Path = None):
+    dfs = []
+    for split in ("train", "valid", "test"):
+        df = pd.read_csv(dataset_path / "original_splits" / f"{split}_data.csv", index_col=0)
+        df = df.rename(columns={"path": "key", "speakerId": "speaker", "transcription": "text"})
+        df["split"] = split
+        df["label"] = 0
+        df["path"] = df["key"].apply(lambda k: dataset_path / k)
+        df["start"] = 0.0
+        df["finish"] = df["path"].apply(lambda p: librosa.get_duration(path=p))
+        dfs.append(df)
+    df = pd.concat(dfs).reset_index(drop=True)
+    for i, (_, _df) in enumerate(df.groupby(["action", "object", "location"])):
+        df.loc[_df.index, "label"] = i
+    return df
+
+
+def _snips_close_field(dataset_path: Path, textgrid_path: Path = None):
+    dfs = []
+    for split in ("train", "valid", "test"):
+        df = pd.read_csv(dataset_path / "original_splits" / "data" / f"{split}_data.csv")
+        df = df.rename(columns={"path": "key", "speakerId": "speaker", "intentLbl": "label"})
+        df["split"] = split
+        df["path"] = df["key"].apply(lambda k: dataset_path / k[3:])
+        df["start"] = 0.0
+        df["finish"] = df["path"].apply(lambda p: librosa.get_duration(path=p))
+        dfs.append(df)
+    return pd.concat(dfs).reset_index(drop=True)
+
+
 _SUPPORTED_DATASETS = {
     "librispeech": _librispeech,
-    "commonvoice_sts": _commonvoice_sts,
     "multilingual_spoken_words": _multilingual_spoken_words,
+    "commonvoice_sts": _commonvoice_sts,
+    "spoken_sts": _spoken_sts,
+    "fluent_speech_commands": _fluent_speech_commands,
+    "snips_close_field": _snips_close_field,
 }
 
 
