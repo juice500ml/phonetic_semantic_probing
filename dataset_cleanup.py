@@ -191,6 +191,7 @@ def _spoken_sts(dataset_path: Path, textgrid_path: Path = None):
 def _fluent_speech_commands(dataset_path: Path, textgrid_path: Path = None, splits: str = "original_splits"):
     dfs = []
     for path in (dataset_path / splits).glob("*.csv"):
+        print(path)
         df = pd.read_csv(path, index_col=0)
         split = path.stem.replace("_data", "")
         df = df.rename(columns={"path": "key", "speakerId": "speaker", "transcription": "text"})
@@ -213,7 +214,7 @@ def _snips_close_field(dataset_path: Path, textgrid_path: Path = None, splits: s
         print(path)
         df = pd.read_csv(path)
         split = path.stem.replace("_data", "")
-        df = df.rename(columns={"path": "key", "speakerId": "speaker", "intentLbl": "label"})
+        df = df.rename(columns={"path": "key", "speakerId": "speaker", "intentLbl": "label", "transcription": "text"})
         df["split"] = split
         df["path"] = df["key"].apply(lambda k: dataset_path / k[3:])
         if splits == "original_splits":
