@@ -8,6 +8,7 @@ from nltk.corpus import wordnet as wn
 from scipy.stats import pearsonr, spearmanr
 from scipy import spatial
 from tqdm import tqdm
+from sklearn.feature_extraction.text import CountVectorizer
 
 
 def phonetic_dist(x: list[str], y: list[str]):
@@ -87,6 +88,17 @@ def filter_df(df, speaker, n_sample, language_uniform, seed):
         if n_sample != None:
             df = df.sample(n_sample, random_state=seed)
     print(f"Filtered size: {len(df)}")
+    return df
+
+
+def add_bow_feat_df(df, use_train=False):
+    df = df.copy()
+    df_train = df[df.split == "train"] if use_train else df
+
+    v = CountVectorizer()
+    v.fit(df_train.text.to_numpy())
+
+    df["feat"] = v.transform(df.text.to_numpy()).todense().tolist()
     return df
 
 
