@@ -55,7 +55,7 @@ def _relabel(df, split_path):
     if "snips" in str(split_path):
         new_df = _snips_close_field(split_path.parent, splits=split_path.name)
     else:
-        new_df = _snips_close_field(split_path.parent, splits=split_path.name)
+        new_df = _fluent_speech_commands(split_path.parent, splits=split_path.name)
     df["key"] = df["key"].astype("string")
     new_df["key"] = new_df["key"].astype("string")
     return df.drop(columns=["label", "split"]).join(new_df[["key", "split", "label"]].set_index("key"), on="key", lsuffix="_r", validate="1:1")
