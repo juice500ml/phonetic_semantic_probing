@@ -63,7 +63,7 @@ def _relabel(df, split_path):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = ArgumentParser()
     parser.add_argument("--df_path", type=Path, help="Path to features")
     parser.add_argument("--split_path", type=Path, help="Path to labels")
     parser.add_argument("--epochs", default=50, type=int, help="Number of epochs to train")
