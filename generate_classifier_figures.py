@@ -79,6 +79,6 @@ if __name__ == "__main__":
         for layer in tqdm(range(layer_count)):
             _df = _mlp(df, layer_index=layer, epochs=args.epochs)
             accs.append((_df.pred == _df.label).mean())
-        pickle.dump(acc, open(acc_result_path, "wb"))
+        pickle.dump(accs, open(acc_result_path, "wb"))
     else:
-        acc = pickle.load(open(acc_result_path, "rb"))
+        accs = pickle.load(open(acc_result_path, "rb"))
