@@ -78,8 +78,10 @@ if __name__ == "__main__":
         accs = []
         for layer in tqdm(range(layer_count)):
             _df = _mlp(df, layer_index=layer, epochs=args.epochs)
-            for split, __df in _df.groupby("split"):
-                accs.append({split: (__df.label == __df.pred).mean()})
+            accs.append({
+                split: (__df.label == __df.pred).mean()
+                for split, __df in _df.groupby("split")
+            })
         pickle.dump(accs, open(acc_result_path, "wb"))
     else:
         accs = pickle.load(open(acc_result_path, "rb"))
