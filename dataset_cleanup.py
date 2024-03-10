@@ -136,7 +136,7 @@ def _commonvoice_sts(dataset_path: Path, textgrid_path: Path = None):
             })
 
             path_b = dataset_path / f"{Path(row['path_b']).stem}.wav"
-            sf.write(path_b, row["audio_a"], samplerate=16000)
+            sf.write(path_b, row["audio_b"], samplerate=16000)
             rows.append({
                 "text": row["sentence_b"],
                 "start": 0.0,
