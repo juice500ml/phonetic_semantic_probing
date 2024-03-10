@@ -188,16 +188,18 @@ def _spoken_sts(dataset_path: Path, textgrid_path: Path = None):
     return pd.DataFrame(rows)
 
 
-def _fluent_speech_commands(dataset_path: Path, textgrid_path: Path = None):
+def _fluent_speech_commands(dataset_path: Path, textgrid_path: Path = None, splits: str = "original_splits"):
     dfs = []
-    for split in ("train", "valid", "test"):
-        df = pd.read_csv(dataset_path / "original_splits" / f"{split}_data.csv", index_col=0)
+    for path in (dataset_path / splits).glob("*.csv"):
+        df = pd.read_csv(path, index_col=0)
+        split = path.stem.replace("_data", "")
         df = df.rename(columns={"path": "key", "speakerId": "speaker", "transcription": "text"})
         df["split"] = split
         df["label"] = 0
         df["path"] = df["key"].apply(lambda k: dataset_path / k)
-        df["start"] = 0.0
-        df["finish"] = df["path"].apply(lambda p: librosa.get_duration(path=p))
+        if splits == "original_splits":
+            df["start"] = 0.0
+            df["finish"] = df["path"].apply(lambda p: librosa.get_duration(path=p))
         dfs.append(df)
     df = pd.concat(dfs).reset_index(drop=True)
     for i, (_, _df) in enumerate(df.groupby(["action", "object", "location"])):
@@ -205,15 +207,18 @@ def _fluent_speech_commands(dataset_path: Path, textgrid_path: Path = None):
     return df
 
 
-def _snips_close_field(dataset_path: Path, textgrid_path: Path = None):
+def _snips_close_field(dataset_path: Path, textgrid_path: Path = None, splits: str = "original_splits"):
     dfs = []
-    for split in ("train", "valid", "test"):
-        df = pd.read_csv(dataset_path / "original_splits" / "data" / f"{split}_data.csv")
+    for path in list((dataset_path / splits).glob("*.csv")) + list((dataset_path / splits).glob("data/*.csv")):
+        print(path)
+        df = pd.read_csv(path)
+        split = path.stem.replace("_data", "")
         df = df.rename(columns={"path": "key", "speakerId": "speaker", "intentLbl": "label"})
         df["split"] = split
         df["path"] = df["key"].apply(lambda k: dataset_path / k[3:])
-        df["start"] = 0.0
-        df["finish"] = df["path"].apply(lambda p: librosa.get_duration(path=p))
+        if splits == "original_splits":
+            df["start"] = 0.0
+            df["finish"] = df["path"].apply(lambda p: librosa.get_duration(path=p))
         dfs.append(df)
     return pd.concat(dfs).reset_index(drop=True)
 
