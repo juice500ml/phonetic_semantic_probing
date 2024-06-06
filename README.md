@@ -140,9 +140,10 @@ for model in microsoft/wavlm-large openai/whisper-large-v3 facebook/wav2vec2-xls
 done
 ```
 
-## Librispeech/MSW Distance measurements
+## Librispeech/MSW word pair distance measurements
 - `generate_layerwise_figures_seeds.py` compares the layerwise distances of SSL representations given various types of word pairs.
-- The distances are cached as `VARIOUS_SETTINGS.dist.pkl` and plotted at figs/seedwise/VARIOUS_SETTINGS.pdf
+- It uses `samplers` from `utils.py` for sampling word pairs, i.e., random, synonym, near-homophone, same speaker, and same word. If all speakers are the same, it skips same speaker sampler.
+- The distances are cached as `VARIOUS_SETTINGS.dist.pkl` and plotted at `figs/seedwise/VARIOUS_SETTINGS.pdf`.
 - Ex. distances: `librispeech-dev-clean-test-clean_model-hubert-large-ll60k_slice-True_spk-everyone_size-10000_pool-mean_seed-0_dist-cos_sim.dist.pkl`
 - Ex. figure: `librispeech-dev-clean-test-clean_model-hubert-large-ll60k_slice-True_spk-everyone_size-10000_pool-mean_num_seeds-5_dist-cos_sim_norm-none.pdf`
 
@@ -184,7 +185,7 @@ python3 generate_layerwise_figures_seeds.py \
     --size full --seeds 0 --speakers 5142 2412 6313 1580 2277
 ```
 
-## FSC/SNIPS Intent classification accuracies
+## FSC/SNIPS intent classification accuracies
 - `generate_classifier_figures.py` compares the layerwise accuracies of SSL representations attached with linear probing.
 - The accuracies are cached as `VARIOUS_SETTINGS_acc.pkl`.
 - Ex. `fluent_speech_commands_model-wavlm-large_slice-True_spk-everyone_size-full_pool-mean_seed-0_challenge_splits_acc.pkl`
