@@ -65,26 +65,26 @@ def _get_feats(row, feats, model, pooling, slice):
     return np.array([_get_feat(row, f, model, pooling, slice) for f in feats])
 
 
-def _prepare_input_slice(path, start, finish, model, device):
+def _prepare_input_slice(proc_func, path, start, finish, model, device):
     x, _ = librosa.load(path, sr=16000, mono=True)
     start = np.clip(int(start * 16000), 0, len(x))
     finish = np.clip(int(finish * 16000), 0, len(x))
-    return _preprocess_input(x[start:finish], model, device)
+    return _preprocess_input(proc_func, x[start:finish], model, device)
 
 
-def _prepare_input(path, model, device):
+def _prepare_input(proc_func, path, model, device):
     x, _ = librosa.load(path, sr=16000, mono=True)
-    return _preprocess_input(x, model, device)
+    return _preprocess_input(proc_func, x, model, device)
 
 
-def _preprocess_input(x, model, device):
-    if "whisper" not in model:
-        x = processor(raw_speech=[x], sampling_rate=16000, padding=False, return_tensors="pt")
-    else:
+def _preprocess_input(proc_func, x, model, device):
+    if "whisper" in model:
         # Fixed 30s input for Whisper
         if len(x) > 16000 * 30:
             return None
-        x = processor(raw_speech=[x], sampling_rate=16000, return_tensors="pt")
+        x = proc_func(raw_speech=[x], sampling_rate=16000, return_tensors="pt")
+    else:
+        x = proc_func(raw_speech=[x], sampling_rate=16000, padding=False, return_tensors="pt")
     return {k: t.to(device) for k, t in x.items()}
 
 
@@ -102,12 +102,12 @@ def _get_output_path(args):
 
 
 def _get_model(model):
-    if "whisper" not in model:
-        processor = Wav2Vec2FeatureExtractor.from_pretrained(model)
-        model = AutoModel.from_pretrained(model)
-    else:
+    if "whisper" in model:
         processor = WhisperFeatureExtractor.from_pretrained(model)
         model = AutoModel.from_pretrained(model).encoder
+    else:
+        processor = Wav2Vec2FeatureExtractor.from_pretrained(model)
+        model = AutoModel.from_pretrained(model)
     return processor, model
 
 
@@ -129,7 +129,7 @@ if __name__ == "__main__":
 
     if args.slice:
         for row in tqdm(df.itertuples()):
-            inputs = _prepare_input_slice(row.path, row.start, row.finish, args.model, args.device)
+            inputs = _prepare_input_slice(processor, row.path, row.start, row.finish, args.model, args.device)
             if inputs is None:
                 continue
             outputs = model(**inputs, output_hidden_states=True)
@@ -138,7 +138,7 @@ if __name__ == "__main__":
 
     else:
         for path in tqdm(df.path.unique()):
-            inputs = _prepare_input(path, args.model, args.device)
+            inputs = _prepare_input(processor, path, args.model, args.device)
             if inputs is None:
                 continue
             outputs = model(**inputs, output_hidden_states=True)
