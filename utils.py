@@ -1,6 +1,6 @@
 import json
 
-# import fasttext
+import fasttext
 import numpy as np
 import pandas as pd
 from jiwer import wer
@@ -40,10 +40,10 @@ def cos_sim(f1, f2):
     return np.dot(f1, f2) / (np.linalg.norm(f1) * np.linalg.norm(f2))
 
 
-# def fasttext_sim(w1, w2, model=fasttext.load_model("./datasets/crawl-300d-2M-subword.bin")):
-#     w1 = model.get_word_vector(w1)
-#     w2 = model.get_word_vector(w2)
-#     return spatial.distance.cosine(w1, w2)
+def fasttext_sim(w1, w2, model=fasttext.load_model("./datasets/crawl-300d-2M-subword.bin")):
+    w1 = model.get_word_vector(w1)
+    w2 = model.get_word_vector(w2)
+    return spatial.distance.cosine(w1, w2)
 
 
 def _load_semcor(path):
@@ -57,12 +57,12 @@ def _load_semcor(path):
     return pd.DataFrame(semcor).replace(np.nan, 0.0).set_index("word")
 
 
-# def semcor_dist(w1, w2, semcor=_load_semcor("./datasets/semcor_noun_verb.supersenses.en")):
-#     if w1 in semcor.index and w2 in semcor.index:
-#         f1 = semcor.loc[w1].to_numpy()
-#         f2 = semcor.loc[w2].to_numpy()
-#         return euclidean_dist(f1, f2)
-#     return np.nan
+def semcor_dist(w1, w2, semcor=_load_semcor("./datasets/semcor_noun_verb.supersenses.en")):
+    if w1 in semcor.index and w2 in semcor.index:
+        f1 = semcor.loc[w1].to_numpy()
+        f2 = semcor.loc[w2].to_numpy()
+        return euclidean_dist(f1, f2)
+    return np.nan
 
 
 def pearson_corr(d1, d2):
@@ -94,10 +94,8 @@ def filter_df(df, speaker, n_sample, language_uniform, seed):
 def add_bow_feat_df(df, use_train=False):
     df = df.copy()
     df_train = df[df.split == "train"] if use_train else df
-
     v = CountVectorizer()
     v.fit(df_train.text.to_numpy())
-
     df["feat"] = v.transform(df.text.to_numpy()).todense().tolist()
     return df
 

@@ -58,7 +58,7 @@ def _relabel(df, split_path):
         new_df = _fluent_speech_commands(split_path.parent, splits=split_path.name)
     df["key"] = df["key"].astype("string")
     new_df["key"] = new_df["key"].astype("string")
-    return df.drop(columns=["label", "split"]).join(new_df[["key", "split", "label"]].set_index("key"), on="key", lsuffix="_r", validate="1:1")
+    return df.drop(columns=["label", "split"]).join(new_df[["key", "split", "label"]].set_index("key"), on="key", lsuffix="_r", validate="1:1").dropna()
 
 
 

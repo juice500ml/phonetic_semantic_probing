@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats
 import pandas as pd
+from tqdm import tqdm
 
 from utils import (
     samplers,
@@ -25,7 +26,7 @@ def _get_args():
     parser.add_argument("--size", default="full")
     parser.add_argument("--pooling")
     parser.add_argument("--dist")
-    parser.add_argument("--num_seeds", type=int, default=5)
+    parser.add_argument("--seeds", type=int, default=[0, 1, 2, 3, 4], nargs="+")
     return parser.parse_args()
 
 
@@ -44,7 +45,7 @@ if __name__ == "__main__":
     dist_func = {"euclidean_dist": euclidean_dist, "cos_sim": cos_sim, "dot_sim": dot_sim}[args.dist]
 
     seedwise_dists = []
-    for seed, speaker in product(range(args.num_seeds), args.speakers):
+    for seed, speaker in tqdm(product(args.seeds, args.speakers)):
         dists_path = Path(f"tables/{args.dataset}_model-{args.model}_slice-{args.slice}_spk-{speaker}_size-{args.size}_pool-{args.pooling}_seed-{seed}_dist-{args.dist}.dist.pkl")
         if dists_path.exists():
             dists = pickle.load(open(dists_path, "rb"))
@@ -59,10 +60,10 @@ if __name__ == "__main__":
 
             dists = defaultdict(list)
             layer_count = len(df.iloc[0].feat)
-            for layer in range(layer_count):
+            for layer in tqdm(range(layer_count)):
                 for name, sampler in samplers.items():
                     accumulator = defaultdict(list)
-                    for l, r in sampler(df, wordmap):
+                    for l, r in tqdm(sampler(df, wordmap)):
                         accumulator[(df.loc[l].text, df.loc[r].text)].append(cos_sim(df.loc[l].feat[layer], df.loc[r].feat[layer]))
                     dists[name].append(np.array([np.array(v).mean() for v in accumulator.values()]))
             pickle.dump(dists, open(dists_path, "wb"))

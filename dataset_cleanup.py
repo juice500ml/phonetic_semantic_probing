@@ -10,7 +10,7 @@ import librosa
 import soundfile as sf
 import numpy as np
 import pandas as pd
-from datasets import load_dataset
+# from datasets import load_dataset
 from nltk.corpus import wordnet
 from textgrids import TextGrid
 from tqdm import tqdm
@@ -47,21 +47,22 @@ def _wordnet(word, lang="eng"):
 
 def _librispeech(dataset_path: Path, textgrid_path: Path):
     rows = []
-    for p in tqdm(textgrid_path.glob("train-clean-*/*/*/*.TextGrid")):
-        grid = TextGrid(p)
-        for word in grid["words"]:
-            phones = _cmudict(word.text)
-            synonyms = list(_wordnet(word.text))
-            if phones is not None and len(synonyms) > 0:
-                rows.append({
-                    "text": word.text,
-                    "start": word.xmin,
-                    "finish": word.xmax,
-                    "path": str((dataset_path / p.relative_to(p.parents[3]).with_suffix(".flac")).absolute()),
-                    "phones": phones,
-                    "synonyms": synonyms,
-                    "speaker": p.parents[1].name,
-                })
+    for split in ("dev-clean", "test-clean"):
+        for p in tqdm(textgrid_path.glob(f"{split}/*/*/*.TextGrid")):
+            grid = TextGrid(p)
+            for word in grid["words"]:
+                phones = _cmudict(word.text)
+                synonyms = list(_wordnet(word.text))
+                if phones is not None and len(synonyms) > 0:
+                    rows.append({
+                        "text": word.text,
+                        "start": word.xmin,
+                        "finish": word.xmax,
+                        "path": str((dataset_path / p.relative_to(p.parents[3]).with_suffix(".flac")).absolute()),
+                        "phones": phones,
+                        "synonyms": synonyms,
+                        "speaker": p.parents[1].name,
+                    })
 
     return pd.DataFrame(rows)
 
