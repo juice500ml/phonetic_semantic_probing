@@ -151,41 +151,34 @@ def _commonvoice_sts(dataset_path: Path, textgrid_path: Path = None):
 
 
 def _spoken_sts(dataset_path: Path, textgrid_path: Path = None):
-    similarities = json.load(open(dataset_path / "all_gt.json"))
-
-    train_size = len(similarities) // 2
-    test_size = len(similarities) - train_size
-    splits = np.array(["train"] * train_size + ["test"] * test_size)
-    np.random.RandomState(42).shuffle(splits)
-    splits = dict(zip(sorted(similarities.keys()), splits))
-
     rows = []
-    for dataset_name in tqdm(("STS12", "STS13", "STS14", "STS15", "STS16", )):
-        for subset_path in (dataset_path / dataset_name).glob("*.json"):
-            subset_name = subset_path.stem
-            for key, (sentence_a, sentence_b) in json.load(open(subset_path)).items():
-                for utt_index in range(1, 5):
-                    utt_path = dataset_path / "SpokenSTS_wav" / "natural_speech" / dataset_name / subset_name
-                    path_a = utt_path / f"{key}_0_human-speaker-{utt_index}.wav"
-                    path_b = utt_path / f"{key}_1_human-speaker-{utt_index}.wav"
-                    rows.append({
-                        "text": sentence_a,
-                        "start": 0.0,
-                        "finish": librosa.get_duration(path=path_a),
-                        "path": path_a,
-                        "paired_text": sentence_b,
-                        "similarity": similarities[f"{dataset_name}_{key}"],
-                        "split": splits[f"{dataset_name}_{key}"],
-                    })
-                    rows.append({
-                        "text": sentence_b,
-                        "start": 0.0,
-                        "finish": librosa.get_duration(path=path_b),
-                        "path": path_b,
-                        "paired_text": None,
-                        "similarity": None,
-                        "split": splits[f"{dataset_name}_{key}"],
-                    })
+    ds = load_dataset("juice500/spoken_sts", cache_dir=dataset_path / "cache")
+    for row in tqdm(ds["test"]):
+        path_a = dataset_path / row["task"] / row["subtask"] / f"{row['subtask']}_{row['pair_id']}_0_human-speaker-{row['speaker_id']}.wav"
+        path_b = dataset_path / row["task"] / row["subtask"] / f"{row['subtask']}_{row['pair_id']}_1_human-speaker-{row['speaker_id']}.wav"
+        path_a.parent.mkdir(parents=True, exist_ok=True)
+
+        sf.write(path_a, row["audio_a"], samplerate=16000)
+        sf.write(path_b, row["audio_b"], samplerate=16000)
+
+        rows.append({
+            "text": row["sentence_a"],
+            "start": 0.0,
+            "finish": len(row["audio_a"]) / 16000,
+            "path": path_a,
+            "paired_text": row["sentence_b"],
+            "similarity": row["similarity"],
+            "split": "test",
+        })
+        rows.append({
+            "text": row["sentence_b"],
+            "start": 0.0,
+            "finish": len(row["audio_b"]) / 16000,
+            "path": path_b,
+            "paired_text": None,
+            "similarity": None,
+            "split": "test",
+        })
     return pd.DataFrame(rows)
 
 
