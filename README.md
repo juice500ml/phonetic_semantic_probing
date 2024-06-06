@@ -1,17 +1,17 @@
 # Self-Supervised Speech Representations are More Phonetic than Semantic
 - Accepted to Interspeech 2024
 
-## Environment
+## Reproducing the experiments
+### Environment
 - Python 3.9
 - Recommended to use conda
 - Please check the `requirements.txt` for more details.
 
-## Dataset download
+### Dataset download
 - Please check `datasets/download_datasets.sh` for details.
 - It also contains non-dataset stuff.
 - For FSC and SNIPS, there is no public URL available. Please follow the instruction of https://github.com/maseEval/mase
 
-## Reproducing the experiments
 ### Dataset cleanup
 - `dataset_cleanup.py` reformats different datasets into a unified format of `DATASET_NAME.df.pkl`, which is pandas-readable (via `read_pickle` method) dataset dataframe.
 - `extract_synonyms_homophones.py` determines the synonyms and near-homophones for each of the word.
@@ -70,7 +70,7 @@ python3 dataset_cleanup.py --dataset_type snips_close_field \
 ```
 
 
-## SSL Feature extraction (Librispeech)
+## SSL representation extraction (Librispeech)
 - `extract_features.py` reads the dataset dataframe `DATASET_NAME.df.pkl` and inserts the SSL representations to yield the `VARIOUS_SETTINGS.feat.pkl`, which adds the `"feat"` column to the original dataset dataframe.
 - There are multiple ways to extract the features, so the settings are written in the file name.
 - Ex. `librispeech-dev-clean-test-clean_model-hubert-large-ll60k_slice-True_spk-everyone_size-10000_pool-mean_seed-0.feat.pkl`
