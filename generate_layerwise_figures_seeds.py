@@ -92,7 +92,7 @@ if __name__ == "__main__":
             plt.fill_between(np.arange(len(value)), value-bound, value+bound, alpha=0.1)
         plt.legend()
 
-        title = f"{args.dataset}_model-{args.model}_slice-{args.slice}_spkcnt-{len(args.speakers)}_size-{args.size}_pool-{args.pooling}_num_seeds-{args.num_seeds}_dist-{args.dist}_norm-{normalizer}"
+        title = f"{args.dataset}_model-{args.model}_slice-{args.slice}_spkcnt-{len(args.speakers)}_size-{args.size}_pool-{args.pooling}_num_seeds-{len(args.seeds)}_dist-{args.dist}_norm-{normalizer}"
         plt.title(title.replace("_pool", "\npool"))
 
         p = Path(f"figs/seedwise/{title}.pdf")
