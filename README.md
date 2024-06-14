@@ -1,5 +1,6 @@
 # Self-Supervised Speech Representations are More Phonetic than Semantic
 - Accepted to Interspeech 2024
+- Paper: https://arxiv.org/abs/2406.08619
 
 ## Reproducing the experiments
 ### Environment
