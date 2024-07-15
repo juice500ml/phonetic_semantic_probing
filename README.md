@@ -1,4 +1,4 @@
-# Self-Supervised Speech Representations are More Phonetic than Semantic
+# Self-Supervised Speech Representations are More Phonetic than Semantic [![DOI](https://zenodo.org/badge/718434125.svg)](https://zenodo.org/doi/10.5281/zenodo.12741309)
 - Accepted to Interspeech 2024
 - Paper: https://arxiv.org/abs/2406.08619
 
