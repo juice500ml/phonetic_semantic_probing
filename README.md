@@ -2,6 +2,9 @@
 - Accepted to Interspeech 2024
 - Paper: https://arxiv.org/abs/2406.08619
 
+![_Interspeech_2024__Poster___Semantic_Probing](https://github.com/user-attachments/assets/e917177f-035a-412e-8edd-9d2a7644ca13)
+
+
 ## Reproducing the experiments
 ### Environment
 - Python 3.9
